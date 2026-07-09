@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <script>window["__codeletBootstrap__"] = JSON.parse('{"A":"A","B":"20260709-05-e5cead5"}');</script>
+    <script src="/_sdk/f432b76fb310b513.telemetry_sdk.js"
+        integrity="sha512-9FJQ55EKmmqhyyik8BhrMVfm0+iYYfb8uOlRsjtkxJMEI97qOVEI4PnHohDjQAtvAep0IOEpdQ64eki0sz62ug=="></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Livros</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="/_sdk/9432170dbd2ae0df.resizing_sdk.js" type="text/javascript"
+        integrity="sha512-FeT+58sb1f9ejWPWFjCbJvTT+SDwGV+ngrHUnlO7TWEOoqwOLj6p256kO3vOL7DIWl1cIgrobiof8v2bOigwPg=="></script>
+</head>
+<body data-template-id="__page-root">
+    <header class="py-4 py-md-5">
+        <div class="container">
+            <h1 class="hero-title fw-bold mb-2">Controle de Empréstimos</h1>
+            <p class="hero-subtitle mb-0">Gerencie alunos, livros e devoluções com uma interface moderna e organizada.</p>
+        </div>
+    </header>
+
+    <main class="container py-4 py-md-5">
+        <section class="card p-4 p-md-4 mb-4">
+            <h2 class="h5 fw-semibold mb-3">Novo empréstimo</h2>
+            <form id="borrow-form">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label for="student-select" class="form-label">Aluno</label>
+                        <select id="student-select" class="form-select" required></select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="book-select" class="form-label">Livro</label>
+                        <select id="book-select" class="form-select" required></select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="date-input" class="form-label">Data</label>
+                        <input type="date" id="date-input" class="form-control" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Registrar empréstimo</button>
+            </form>
+            <div id="status-msg" class="alert alert-success mt-3 mb-0 d-none"></div>
+        </section>
+
+        <section class="card overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Aluno</th>
+                            <th>Livro</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th class="text-end">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="records-body"></tbody>
+                </table>
+            </div>
+            <p id="empty-msg" class="empty-state text-center py-4 mb-0 d-none">Nenhum empréstimo cadastrado ainda.</p>
+        </section>
+
+        <div id="limit-warning" class="alert alert-warning mt-3 d-none">
+            Limite de 999 registros atingido.
+        </div>
+    </main>
+
+    <script src="/_sdk/719055fef2a85d14.editing_sdk.js"
+        integrity="sha512-kFqrdGgIiTOsu307feB5Cy3JVP9IayftsmCIZ0csxYBGuBmJQPhyvcnmKR8F0fTW97h5s1gAvz3SumI8zJ6OxQ=="></script>
+    <script src="/_sdk/0179d719c431a79e.data_sdk.js"
+        integrity="sha512-OsRvJkI5GkC3MJQcgotQYotpzrMSX415GiKKgvYdxQEEkzD/fdchShO2FMSy0PJr/tiINMXOk5Vl2zAgg6bUiA=="></script>
+    <script src="app.js"></script>
+    <script>(function () { function c() { var b = a.contentDocument || a.contentWindow.document; if (b) { var d = b.createElement('script'); d.innerHTML = "window.__CF$cv$params={r:'a186e16557b2f1cb',t:'MTc4MzU5NTQwOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);"; b.getElementsByTagName('head')[0].appendChild(d) } } if (document.body) { var a = document.createElement('iframe'); a.height = 1; a.width = 1; a.style.position = 'absolute'; a.style.top = 0; a.style.left = 0; a.style.border = 'none'; a.style.visibility = 'hidden'; document.body.appendChild(a); if ('loading' !== document.readyState) c(); else if (window.addEventListener) document.addEventListener('DOMContentLoaded', c); else { var e = document.onreadystatechange || function () { }; document.onreadystatechange = function (b) { e(b); 'loading' !== document.readyState && (document.onreadystatechange = e, c()) } } } })();</script>
+</body>
+</html>

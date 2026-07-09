@@ -1,0 +1,100 @@
+:root {
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --text: #15212f;
+  --muted: #6c757d;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #198754;
+  --warning: #b45309;
+  --danger: #dc3545;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: linear-gradient(135deg, #f8fbff 0%, var(--bg) 100%);
+  color: var(--text);
+}
+
+header {
+  background: linear-gradient(90deg, #0f172a 0%, #1d4ed8 100%);
+  color: white;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.form-control,
+.form-select {
+  border-radius: 0.8rem;
+  border: 1px solid #ced4da;
+  padding: 0.72rem 0.9rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.2);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  border-radius: 0.8rem;
+  padding: 0.7rem 1rem;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.table thead th {
+  background: #f8f9fa;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+.badge-status {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.badge-status.empr {
+  background: #fff3cd;
+  color: var(--warning);
+}
+
+.badge-status.dev {
+  background: #d1e7dd;
+  color: var(--success);
+}
+
+.empty-state {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.hero-title {
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
+}
+
+.hero-subtitle {
+  color: rgba(255,255,255,0.85);
+  max-width: 700px;
+}
