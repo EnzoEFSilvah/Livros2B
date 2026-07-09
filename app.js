@@ -32,6 +32,7 @@ const limitWarning = document.getElementById('limit-warning');
 
 let allRecords = [];
 let studentProfiles = [];
+let editingRecordId = null;
 
 function populateSelect(selectElement, values, placeholderText = '') {
   if (placeholderText) {
@@ -227,10 +228,16 @@ function renderRecords(data) {
         <td></td>
         <td><span class="badge-status"></span></td>
         <td class="text-end">
-          <button type="button" class="btn btn-outline-primary btn-sm return-btn">Devolver</button>
+          <div class="action-buttons">
+            <button type="button" class="btn btn-outline-primary btn-sm return-btn">Devolver</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm edit-btn">Editar</button>
+            <button type="button" class="btn btn-outline-danger btn-sm delete-btn">Excluir</button>
+          </div>
         </td>
       `;
       row.querySelector('.return-btn').addEventListener('click', () => handleReturn(rec.__backendId));
+      row.querySelector('.edit-btn').addEventListener('click', () => startEditRecord(rec));
+      row.querySelector('.delete-btn').addEventListener('click', () => deleteRecord(rec.__backendId));
       tbody.appendChild(row);
     }
 
@@ -240,12 +247,18 @@ function renderRecords(data) {
       ? `<img src="${profile.photo}" alt="${rec.student_name}" class="student-avatar-image">`
       : `<span>${getInitials(rec.student_name)}</span>`;
 
-    cells[0].innerHTML = `
-      <div class="d-flex align-items-center gap-2">
-        <div class="student-avatar">${avatarMarkup}</div>
-        <span class="fw-semibold">${rec.student_name}</span>
-      </div>
+    const studentCell = document.createElement('div');
+    studentCell.className = 'd-flex align-items-center gap-2 student-select-trigger';
+    studentCell.innerHTML = `
+      <div class="student-avatar">${avatarMarkup}</div>
+      <span class="fw-semibold">${rec.student_name}</span>
     `;
+    studentCell.addEventListener('click', () => {
+      updatePhotoPreview(rec.student_name);
+      renderStudentHistory(rec.student_name);
+    });
+    cells[0].innerHTML = '';
+    cells[0].appendChild(studentCell);
     cells[1].textContent = rec.book_title;
     cells[2].textContent = formatDate(rec.borrow_date);
 
@@ -254,6 +267,10 @@ function renderRecords(data) {
     badge.textContent = isReturned ? 'Devolvido' : 'Emprestado';
     badge.className = `badge-status ${isReturned ? 'dev' : 'empr'}`;
     row.querySelector('.return-btn').classList.toggle('d-none', isReturned);
+
+    if (editingRecordId === rec.__backendId) {
+      renderEditForm(row, rec);
+    }
   });
 
   existing.forEach((row, id) => {
@@ -266,6 +283,100 @@ function renderRecords(data) {
   } else {
     resetStudentPanel();
   }
+}
+
+function renderEditForm(row, rec) {
+  row.innerHTML = `
+    <td colspan="5">
+      <div class="edit-form-row">
+        <select class="form-select form-select-sm edit-student"></select>
+        <select class="form-select form-select-sm edit-book"></select>
+        <input type="date" class="form-control form-control-sm edit-date">
+        <select class="form-select form-select-sm edit-status">
+          <option value="emprestado">Emprestado</option>
+          <option value="devolvido">Devolvido</option>
+        </select>
+        <input type="date" class="form-control form-control-sm edit-return-date">
+        <button type="button" class="btn btn-primary btn-sm save-edit">Salvar</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm cancel-edit">Cancelar</button>
+      </div>
+    </td>
+  `;
+
+  const studentEdit = row.querySelector('.edit-student');
+  const bookEdit = row.querySelector('.edit-book');
+  const dateEdit = row.querySelector('.edit-date');
+  const statusEdit = row.querySelector('.edit-status');
+  const returnDateEdit = row.querySelector('.edit-return-date');
+
+  populateSelect(studentEdit, students);
+  populateSelect(bookEdit, books);
+  studentEdit.value = rec.student_name;
+  bookEdit.value = rec.book_title;
+  dateEdit.value = rec.borrow_date ? new Date(rec.borrow_date).toISOString().split('T')[0] : '';
+  statusEdit.value = rec.status || 'emprestado';
+  returnDateEdit.value = rec.return_date ? new Date(rec.return_date).toISOString().split('T')[0] : '';
+
+  statusEdit.addEventListener('change', () => {
+    if (statusEdit.value !== 'devolvido') {
+      returnDateEdit.value = '';
+    }
+  });
+
+  row.querySelector('.save-edit').addEventListener('click', async () => {
+    const returnDateValue = statusEdit.value === 'devolvido'
+      ? (returnDateEdit.value ? new Date(`${returnDateEdit.value}T12:00:00`).toISOString() : new Date().toISOString())
+      : '';
+
+    const updatedRecord = {
+      ...rec,
+      student_name: studentEdit.value,
+      book_title: bookEdit.value,
+      borrow_date: new Date(`${dateEdit.value}T12:00:00`).toISOString(),
+      status: statusEdit.value,
+      return_date: returnDateValue
+    };
+
+    const result = await saveRecord(updatedRecord);
+    if (result.isOk) {
+      editingRecordId = null;
+      renderRecords(getStoredRecords());
+      showMsg('Registro atualizado!', false);
+    } else {
+      showMsg('Erro ao atualizar.', true);
+    }
+  });
+
+  row.querySelector('.cancel-edit').addEventListener('click', () => {
+    editingRecordId = null;
+    renderRecords(getStoredRecords());
+  });
+}
+
+function startEditRecord(rec) {
+  editingRecordId = rec.__backendId;
+  renderRecords(getStoredRecords());
+}
+
+async function deleteRecord(id) {
+  const confirmed = window.confirm('Deseja excluir este registro?');
+  if (!confirmed) return;
+
+  const nextRecords = getStoredRecords().filter((item) => item.__backendId !== id);
+  saveStoredRecords(nextRecords);
+  renderRecords(nextRecords);
+  showMsg('Registro excluído.', false);
+}
+
+async function saveRecord(updatedRecord) {
+  if (window.dataSdk?.update) {
+    return window.dataSdk.update(updatedRecord);
+  }
+
+  const nextRecords = getStoredRecords().map((item) => item.__backendId === updatedRecord.__backendId ? updatedRecord : item);
+  saveStoredRecords(nextRecords);
+  renderRecords(nextRecords);
+  return { isOk: true };
 }
 
 async function handleReturn(id) {
