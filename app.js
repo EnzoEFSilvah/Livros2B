@@ -1,6 +1,6 @@
 const students = [
   'Alexsandro', 'Alice', 'Arthur', 'Carlito', 'Dominic',
-  'Edson', 'Estevan', 'Gregory', 'Kimberly', 'Layslla',
+  'Edson', 'Enzo', 'Estevan', 'Gregory', 'Kimberly', 'Layslla',
   'Luis', 'Matheus', 'Murillo', 'Ryan', 'Sophia',
   'Valentina', 'Vyctor', 'Vytoria', 'Weiny', 'Yohanna'
 ];
@@ -31,11 +31,18 @@ const statusMsg = document.getElementById('status-msg');
 const borrowForm = document.getElementById('borrow-form');
 const limitWarning = document.getElementById('limit-warning');
 const viewButtons = document.querySelectorAll('[data-view]');
+const filterMonth = document.getElementById('filter-month');
+const filterStudent = document.getElementById('filter-student');
+const filterBook = document.getElementById('filter-book');
+const filterBookOptions = document.getElementById('filter-book-options');
+const clearFiltersButton = document.getElementById('clear-filters');
+const monthlySummary = document.getElementById('monthly-summary');
 
 let allRecords = [];
 let studentProfiles = [];
 let editingRecordId = null;
 let currentView = 'cards';
+let activeFilters = { month: '', student: '', book: '' };
 
 function populateSelect(selectElement, values, placeholderText = '') {
   if (placeholderText) {
@@ -133,12 +140,57 @@ function populateStudentSelect() {
 
 function populateBookDatalist(values) {
   bookDatalist.innerHTML = '';
+  filterBookOptions.innerHTML = '';
 
   values.forEach((value) => {
     const option = document.createElement('option');
     option.value = value;
     bookDatalist.appendChild(option);
+    filterBookOptions.appendChild(option.cloneNode(true));
   });
+}
+
+function populateFilterStudentSelect() {
+  filterStudent.innerHTML = '<option value="">Todos os alunos</option>';
+  studentProfiles.forEach((profile) => {
+    const option = document.createElement('option');
+    option.value = profile.name;
+    option.textContent = profile.name;
+    filterStudent.appendChild(option);
+  });
+}
+
+function getFilteredRecords(records) {
+  return records.filter((record) => {
+    const recordMonth = record.borrow_date ? record.borrow_date.slice(0, 7) : '';
+    const matchesMonth = !activeFilters.month || recordMonth === activeFilters.month;
+    const matchesStudent = !activeFilters.student || record.student_name === activeFilters.student;
+    const matchesBook = !activeFilters.book || record.book_title.toLowerCase().includes(activeFilters.book.toLowerCase());
+    return matchesMonth && matchesStudent && matchesBook;
+  });
+}
+
+function renderMonthlySummary(records) {
+  const summary = records.reduce((acc, record) => {
+    const month = record.borrow_date ? record.borrow_date.slice(0, 7) : 'sem-data';
+    acc[month] = (acc[month] || 0) + 1;
+    return acc;
+  }, {});
+
+  const entries = Object.entries(summary).sort(([a], [b]) => b.localeCompare(a));
+  if (!entries.length) {
+    monthlySummary.innerHTML = '<div class="text-muted small">Nenhum empréstimo encontrado para o período filtrado.</div>';
+    return;
+  }
+
+  monthlySummary.innerHTML = `
+    <div class="fw-semibold mb-2">Resumo por mês</div>
+    <div class="d-flex flex-wrap gap-2">
+      ${entries.map(([month, count]) => `
+        <span class="badge text-bg-primary">${month} · ${count} livro${count === 1 ? '' : 's'}</span>
+      `).join('')}
+    </div>
+  `;
 }
 
 function resetStudentPanel() {
@@ -221,13 +273,19 @@ function showMsg(text, isError) {
   }, 3000);
 }
 
+function isBookAvailable(title) {
+  return !allRecords.some((record) => record.book_title === title && record.status !== 'devolvido');
+}
+
 function renderRecords(data) {
   allRecords = data;
-  emptyMsg.classList.toggle('d-none', data.length > 0);
+  const filteredRecords = getFilteredRecords(data);
+  emptyMsg.classList.toggle('d-none', filteredRecords.length > 0);
   recordsView.className = currentView === 'list' ? 'records-list' : 'records-grid';
   recordsView.innerHTML = '';
+  renderMonthlySummary(filteredRecords);
 
-  data.forEach((rec) => {
+  filteredRecords.forEach((rec) => {
     const profile = getStudentProfile(rec.student_name);
     const avatarMarkup = profile.photo
       ? `<img src="${profile.photo}" alt="${rec.student_name}" class="student-avatar-image">`
@@ -443,6 +501,11 @@ borrowForm.addEventListener('submit', async (event) => {
     return;
   }
 
+  if (!isBookAvailable(selectedBook)) {
+    showMsg('Este livro já está emprestado e não pode ser emprestado para outro aluno.', true);
+    return;
+  }
+
   const submitButton = borrowForm.querySelector('button[type="submit"]');
   submitButton.disabled = true;
   submitButton.textContent = 'Registrando...';
@@ -479,6 +542,25 @@ viewButtons.forEach((button) => {
   });
 });
 
+[filterMonth, filterStudent, filterBook].forEach((input) => {
+  input.addEventListener('input', () => {
+    activeFilters = {
+      month: filterMonth.value,
+      student: filterStudent.value,
+      book: filterBook.value
+    };
+    renderRecords(allRecords);
+  });
+});
+
+clearFiltersButton.addEventListener('click', () => {
+  activeFilters = { month: '', student: '', book: '' };
+  filterMonth.value = '';
+  filterStudent.value = '';
+  filterBook.value = '';
+  renderRecords(allRecords);
+});
+
 studentSelect.addEventListener('change', () => {
   if (!studentSelect.value) {
     resetStudentPanel();
@@ -508,21 +590,29 @@ photoInput.addEventListener('change', (event) => {
   reader.readAsDataURL(file);
 });
 
-studentProfiles = getStoredStudentProfiles().length
-  ? getStoredStudentProfiles()
+const storedProfiles = getStoredStudentProfiles();
+studentProfiles = storedProfiles.length
+  ? storedProfiles
   : students.map((name) => ({ name, photo: null }));
 
-if (!studentProfiles.length) {
-  studentProfiles = students.map((name) => ({ name, photo: null }));
-}
+const existingStudentNames = new Set(studentProfiles.map((profile) => profile.name));
+students.forEach((name) => {
+  if (!existingStudentNames.has(name)) {
+    studentProfiles.push({ name, photo: null });
+  }
+});
 
 saveStoredStudentProfiles(studentProfiles);
 populateBookDatalist(books);
 populateStudentSelect();
+populateFilterStudentSelect();
 dateInput.value = new Date().toISOString().split('T')[0];
 
 studentSelect.value = '';
 bookSelect.value = '';
+filterMonth.value = '';
+filterStudent.value = '';
+filterBook.value = '';
 updatePhotoPreview('');
 renderStudentHistory('');
 

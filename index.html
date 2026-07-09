@@ -73,6 +73,29 @@
                     <button type="button" class="btn btn-sm" data-view="list">Lista</button>
                 </div>
             </div>
+
+            <div class="p-3 border-bottom bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label for="filter-month" class="form-label small mb-1">Mês</label>
+                        <input type="month" id="filter-month" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="filter-student" class="form-label small mb-1">Aluno</label>
+                        <select id="filter-student" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="filter-book" class="form-label small mb-1">Livro</label>
+                        <input type="text" id="filter-book" class="form-control form-control-sm" list="filter-book-options" placeholder="Digite ou selecione um livro">
+                        <datalist id="filter-book-options"></datalist>
+                    </div>
+                    <div class="col-12 col-md-1 d-grid">
+                        <button type="button" id="clear-filters" class="btn btn-outline-secondary btn-sm">Limpar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="monthly-summary" class="p-3 border-bottom"></div>
             <div id="records-view" class="records-grid"></div>
             <p id="empty-msg" class="empty-state text-center py-4 mb-0 d-none">Nenhum empréstimo cadastrado ainda.</p>
         </section>
