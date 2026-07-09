@@ -320,7 +320,6 @@ function renderRecords(data) {
     `;
 
     card.querySelector('.student-select-trigger').addEventListener('click', () => {
-      updatePhotoPreview(rec.student_name);
       renderStudentHistory(rec.student_name);
     });
     card.querySelector('.return-btn').addEventListener('click', () => handleReturn(rec.__backendId));
