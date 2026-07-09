@@ -15,9 +15,15 @@ const books = [
 ];
 
 const STORAGE_KEY = 'livros-emprestimos';
+const STUDENT_PROFILES_KEY = 'livros-perfis-alunos';
 const studentSelect = document.getElementById('student-select');
 const bookSelect = document.getElementById('book-select');
 const dateInput = document.getElementById('date-input');
+const photoInput = document.getElementById('student-photo');
+const photoPreview = document.getElementById('student-photo-preview');
+const profileCard = document.getElementById('student-profile-card');
+const historyList = document.getElementById('student-history-list');
+const historyCount = document.getElementById('student-history-count');
 const tbody = document.getElementById('records-body');
 const emptyMsg = document.getElementById('empty-msg');
 const statusMsg = document.getElementById('status-msg');
@@ -25,8 +31,16 @@ const borrowForm = document.getElementById('borrow-form');
 const limitWarning = document.getElementById('limit-warning');
 
 let allRecords = [];
+let studentProfiles = [];
 
-function populateSelect(selectElement, values) {
+function populateSelect(selectElement, values, placeholderText = '') {
+  if (placeholderText) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = placeholderText;
+    selectElement.appendChild(placeholder);
+  }
+
   values.forEach((value) => {
     const option = document.createElement('option');
     option.value = value;
@@ -39,6 +53,14 @@ function formatDate(iso) {
   if (!iso) return '—';
   const date = new Date(iso);
   return date.toLocaleDateString('pt-BR');
+}
+
+function getSelectedDateValue() {
+  const value = dateInput.value;
+  if (!value) return '';
+
+  const [year, month, day] = value.split('-').map(Number);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 function getStoredRecords() {
@@ -59,8 +81,119 @@ function saveStoredRecords(records) {
   }
 }
 
+function getStoredStudentProfiles() {
+  try {
+    const raw = localStorage.getItem(STUDENT_PROFILES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (error) {
+    console.warn('Não foi possível ler as fotos dos alunos:', error);
+    return [];
+  }
+}
+
+function saveStoredStudentProfiles(profiles) {
+  try {
+    localStorage.setItem(STUDENT_PROFILES_KEY, JSON.stringify(profiles));
+  } catch (error) {
+    console.warn('Não foi possível salvar as fotos dos alunos:', error);
+  }
+}
+
 function createRecordId() {
   return window.crypto?.randomUUID?.() || `rec-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getInitials(name) {
+  return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function getStudentProfile(name) {
+  return studentProfiles.find((profile) => profile.name === name) || { name, photo: null };
+}
+
+function populateStudentSelect() {
+  studentSelect.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Selecione um aluno';
+  studentSelect.appendChild(placeholder);
+
+  studentProfiles.forEach((profile) => {
+    const option = document.createElement('option');
+    option.value = profile.name;
+    option.textContent = profile.name;
+    studentSelect.appendChild(option);
+  });
+}
+
+function resetStudentPanel() {
+  photoPreview.innerHTML = '<span class="text-muted">Selecione um aluno para ver a foto.</span>';
+  profileCard.innerHTML = '<div class="text-muted small">Selecione um aluno para ver o perfil.</div>';
+  historyList.innerHTML = '<div class="history-item text-muted">Nenhum histórico para exibir.</div>';
+  historyCount.textContent = '0 empréstimos';
+}
+
+function updatePhotoPreview(studentName) {
+  if (!studentName) {
+    photoPreview.innerHTML = '<span class="text-muted">Selecione um aluno para ver a foto.</span>';
+    return;
+  }
+
+  const profile = getStudentProfile(studentName);
+  if (profile.photo) {
+    photoPreview.innerHTML = `<img src="${profile.photo}" alt="Foto de ${studentName}">`;
+  } else {
+    photoPreview.innerHTML = `<span class="text-muted">Nenhuma foto selecionada ainda.</span>`;
+  }
+}
+
+function renderStudentHistory(studentName) {
+  if (!studentName) {
+    resetStudentPanel();
+    return;
+  }
+
+  const profile = getStudentProfile(studentName);
+  const history = allRecords
+    .filter((record) => record.student_name === studentName)
+    .sort((a, b) => new Date(b.borrow_date) - new Date(a.borrow_date));
+
+  const activeCount = history.filter((record) => record.status !== 'devolvido').length;
+  const returnedCount = history.length - activeCount;
+  historyCount.textContent = `${history.length} empréstimo${history.length === 1 ? '' : 's'}`;
+
+  const photoMarkup = profile.photo
+    ? `<img src="${profile.photo}" alt="${studentName}" class="student-avatar-image">`
+    : `<span>${getInitials(studentName)}</span>`;
+
+  profileCard.innerHTML = `
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="student-avatar large">${photoMarkup}</div>
+      <div>
+        <h3 class="h6 mb-1">${studentName}</h3>
+        <p class="mb-0 small text-muted">${activeCount} ativo${activeCount === 1 ? '' : 's'} · ${returnedCount} devolvido${returnedCount === 1 ? '' : 's'}</p>
+      </div>
+    </div>
+    <p class="small text-muted mb-0">Adicione uma foto para personalizar o perfil do aluno e acompanhar melhor seus empréstimos.</p>
+  `;
+
+  if (!history.length) {
+    historyList.innerHTML = '<div class="history-item text-muted">Nenhum livro registrado para este aluno ainda.</div>';
+    return;
+  }
+
+  historyList.innerHTML = history.map((record) => `
+    <div class="history-item">
+      <div class="d-flex justify-content-between gap-3">
+        <div>
+          <div class="fw-semibold">${record.book_title}</div>
+          <div class="small text-muted">${formatDate(record.borrow_date)}</div>
+        </div>
+        <span class="badge-status ${record.status === 'devolvido' ? 'dev' : 'empr'}">${record.status === 'devolvido' ? 'Devolvido' : 'Emprestado'}</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 function showMsg(text, isError) {
@@ -102,7 +235,17 @@ function renderRecords(data) {
     }
 
     const cells = row.querySelectorAll('td');
-    cells[0].textContent = rec.student_name;
+    const profile = getStudentProfile(rec.student_name);
+    const avatarMarkup = profile.photo
+      ? `<img src="${profile.photo}" alt="${rec.student_name}" class="student-avatar-image">`
+      : `<span>${getInitials(rec.student_name)}</span>`;
+
+    cells[0].innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <div class="student-avatar">${avatarMarkup}</div>
+        <span class="fw-semibold">${rec.student_name}</span>
+      </div>
+    `;
     cells[1].textContent = rec.book_title;
     cells[2].textContent = formatDate(rec.borrow_date);
 
@@ -116,6 +259,13 @@ function renderRecords(data) {
   existing.forEach((row, id) => {
     if (!seen.has(id)) row.remove();
   });
+
+  const activeStudent = studentSelect.value || studentProfiles[0]?.name || '';
+  if (activeStudent) {
+    renderStudentHistory(activeStudent);
+  } else {
+    resetStudentPanel();
+  }
 }
 
 async function handleReturn(id) {
@@ -183,7 +333,7 @@ borrowForm.addEventListener('submit', async (event) => {
   const result = await createRecord({
     student_name: studentSelect.value,
     book_title: bookSelect.value,
-    borrow_date: new Date(dateInput.value).toISOString(),
+    borrow_date: new Date(`${getSelectedDateValue()}T12:00:00`).toISOString(),
     return_date: '',
     status: 'emprestado'
   });
@@ -193,14 +343,63 @@ borrowForm.addEventListener('submit', async (event) => {
 
   if (result.isOk) {
     showMsg('Empréstimo registrado com sucesso!', false);
+    borrowForm.reset();
+    dateInput.value = new Date().toISOString().split('T')[0];
+    photoInput.value = '';
+    studentSelect.value = '';
+    updatePhotoPreview('');
+    renderStudentHistory('');
   } else {
     showMsg('Erro ao registrar empréstimo.', true);
   }
 });
 
-populateSelect(studentSelect, students);
-populateSelect(bookSelect, books);
+studentSelect.addEventListener('change', () => {
+  if (!studentSelect.value) {
+    resetStudentPanel();
+    return;
+  }
+  updatePhotoPreview(studentSelect.value);
+  renderStudentHistory(studentSelect.value);
+});
+
+photoInput.addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const selectedStudent = studentSelect.value;
+    const profile = studentProfiles.find((item) => item.name === selectedStudent);
+    if (!profile) return;
+
+    profile.photo = reader.result;
+    saveStoredStudentProfiles(studentProfiles);
+    updatePhotoPreview(selectedStudent);
+    renderStudentHistory(selectedStudent);
+    renderRecords(allRecords);
+    showMsg(`Foto de ${selectedStudent} atualizada!`, false);
+  };
+  reader.readAsDataURL(file);
+});
+
+studentProfiles = getStoredStudentProfiles().length
+  ? getStoredStudentProfiles()
+  : students.map((name) => ({ name, photo: null }));
+
+if (!studentProfiles.length) {
+  studentProfiles = students.map((name) => ({ name, photo: null }));
+}
+
+saveStoredStudentProfiles(studentProfiles);
+populateSelect(bookSelect, books, 'Selecione um livro');
+populateStudentSelect();
 dateInput.value = new Date().toISOString().split('T')[0];
+
+studentSelect.value = '';
+bookSelect.value = '';
+updatePhotoPreview('');
+renderStudentHistory('');
 
 (async () => {
   const storedRecords = getStoredRecords();
