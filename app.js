@@ -25,15 +25,17 @@ const photoPreview = document.getElementById('student-photo-preview');
 const profileCard = document.getElementById('student-profile-card');
 const historyList = document.getElementById('student-history-list');
 const historyCount = document.getElementById('student-history-count');
-const tbody = document.getElementById('records-body');
+const recordsView = document.getElementById('records-view');
 const emptyMsg = document.getElementById('empty-msg');
 const statusMsg = document.getElementById('status-msg');
 const borrowForm = document.getElementById('borrow-form');
 const limitWarning = document.getElementById('limit-warning');
+const viewButtons = document.querySelectorAll('[data-view]');
 
 let allRecords = [];
 let studentProfiles = [];
 let editingRecordId = null;
+let currentView = 'cards';
 
 function populateSelect(selectElement, values, placeholderText = '') {
   if (placeholderText) {
@@ -222,70 +224,59 @@ function showMsg(text, isError) {
 function renderRecords(data) {
   allRecords = data;
   emptyMsg.classList.toggle('d-none', data.length > 0);
-
-  const existing = new Map([...tbody.children].map((row) => [row.dataset.id, row]));
-  const seen = new Set();
+  recordsView.className = currentView === 'list' ? 'records-list' : 'records-grid';
+  recordsView.innerHTML = '';
 
   data.forEach((rec) => {
-    seen.add(rec.__backendId);
-
-    let row = existing.get(rec.__backendId);
-    if (!row) {
-      row = document.createElement('tr');
-      row.dataset.id = rec.__backendId;
-      row.innerHTML = `
-        <td></td>
-        <td></td>
-        <td></td>
-        <td><span class="badge-status"></span></td>
-        <td class="text-end">
-          <div class="action-buttons">
-            <button type="button" class="btn btn-outline-primary btn-sm return-btn">Devolver</button>
-            <button type="button" class="btn btn-outline-secondary btn-sm edit-btn">Editar</button>
-            <button type="button" class="btn btn-outline-danger btn-sm delete-btn">Excluir</button>
-          </div>
-        </td>
-      `;
-      row.querySelector('.return-btn').addEventListener('click', () => handleReturn(rec.__backendId));
-      row.querySelector('.edit-btn').addEventListener('click', () => startEditRecord(rec));
-      row.querySelector('.delete-btn').addEventListener('click', () => deleteRecord(rec.__backendId));
-      tbody.appendChild(row);
-    }
-
-    const cells = row.querySelectorAll('td');
     const profile = getStudentProfile(rec.student_name);
     const avatarMarkup = profile.photo
       ? `<img src="${profile.photo}" alt="${rec.student_name}" class="student-avatar-image">`
       : `<span>${getInitials(rec.student_name)}</span>`;
 
-    const studentCell = document.createElement('div');
-    studentCell.className = 'd-flex align-items-center gap-2 student-select-trigger';
-    studentCell.innerHTML = `
-      <div class="student-avatar">${avatarMarkup}</div>
-      <span class="fw-semibold">${rec.student_name}</span>
+    const card = document.createElement('div');
+    card.className = 'record-card';
+    card.dataset.id = rec.__backendId;
+    card.innerHTML = `
+      <div class="record-card-header">
+        <div class="d-flex align-items-center gap-2 student-select-trigger">
+          <div class="student-avatar">${avatarMarkup}</div>
+          <div>
+            <div class="record-card-title">${rec.student_name}</div>
+            <div class="record-card-meta">${formatDate(rec.borrow_date)}</div>
+          </div>
+        </div>
+        <span class="badge-status ${rec.status === 'devolvido' ? 'dev' : 'empr'}">${rec.status === 'devolvido' ? 'Devolvido' : 'Emprestado'}</span>
+      </div>
+      <div class="record-card-body">
+        <div><strong>Livro:</strong> ${rec.book_title}</div>
+        <div><strong>Data de empréstimo:</strong> ${formatDate(rec.borrow_date)}</div>
+        <div><strong>Data de devolução:</strong> ${rec.return_date ? formatDate(rec.return_date) : '—'}</div>
+      </div>
+      <div class="record-card-footer">
+        <div class="action-buttons">
+          <button type="button" class="btn btn-outline-primary btn-sm return-btn">Devolver</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm edit-btn">Editar</button>
+          <button type="button" class="btn btn-outline-danger btn-sm delete-btn">Excluir</button>
+        </div>
+      </div>
     `;
-    studentCell.addEventListener('click', () => {
+
+    card.querySelector('.student-select-trigger').addEventListener('click', () => {
       updatePhotoPreview(rec.student_name);
       renderStudentHistory(rec.student_name);
     });
-    cells[0].innerHTML = '';
-    cells[0].appendChild(studentCell);
-    cells[1].textContent = rec.book_title;
-    cells[2].textContent = formatDate(rec.borrow_date);
+    card.querySelector('.return-btn').addEventListener('click', () => handleReturn(rec.__backendId));
+    card.querySelector('.edit-btn').addEventListener('click', () => startEditRecord(rec));
+    card.querySelector('.delete-btn').addEventListener('click', () => deleteRecord(rec.__backendId));
 
-    const badge = cells[3].querySelector('span');
     const isReturned = rec.status === 'devolvido';
-    badge.textContent = isReturned ? 'Devolvido' : 'Emprestado';
-    badge.className = `badge-status ${isReturned ? 'dev' : 'empr'}`;
-    row.querySelector('.return-btn').classList.toggle('d-none', isReturned);
+    card.querySelector('.return-btn').classList.toggle('d-none', isReturned);
 
     if (editingRecordId === rec.__backendId) {
-      renderEditForm(row, rec);
+      renderEditForm(card, rec);
     }
-  });
 
-  existing.forEach((row, id) => {
-    if (!seen.has(id)) row.remove();
+    recordsView.appendChild(card);
   });
 
   const activeStudent = studentSelect.value || studentProfiles[0]?.name || '';
@@ -296,29 +287,27 @@ function renderRecords(data) {
   }
 }
 
-function renderEditForm(row, rec) {
-  row.innerHTML = `
-    <td colspan="5">
-      <div class="edit-form-row">
-        <select class="form-select form-select-sm edit-student"></select>
-        <select class="form-select form-select-sm edit-book"></select>
-        <input type="date" class="form-control form-control-sm edit-date">
-        <select class="form-select form-select-sm edit-status">
-          <option value="emprestado">Emprestado</option>
-          <option value="devolvido">Devolvido</option>
-        </select>
-        <input type="date" class="form-control form-control-sm edit-return-date">
-        <button type="button" class="btn btn-primary btn-sm save-edit">Salvar</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm cancel-edit">Cancelar</button>
-      </div>
-    </td>
+function renderEditForm(container, rec) {
+  container.innerHTML = `
+    <div class="edit-form-row">
+      <select class="form-select form-select-sm edit-student"></select>
+      <select class="form-select form-select-sm edit-book"></select>
+      <input type="date" class="form-control form-control-sm edit-date">
+      <select class="form-select form-select-sm edit-status">
+        <option value="emprestado">Emprestado</option>
+        <option value="devolvido">Devolvido</option>
+      </select>
+      <input type="date" class="form-control form-control-sm edit-return-date">
+      <button type="button" class="btn btn-primary btn-sm save-edit">Salvar</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm cancel-edit">Cancelar</button>
+    </div>
   `;
 
-  const studentEdit = row.querySelector('.edit-student');
-  const bookEdit = row.querySelector('.edit-book');
-  const dateEdit = row.querySelector('.edit-date');
-  const statusEdit = row.querySelector('.edit-status');
-  const returnDateEdit = row.querySelector('.edit-return-date');
+  const studentEdit = container.querySelector('.edit-student');
+  const bookEdit = container.querySelector('.edit-book');
+  const dateEdit = container.querySelector('.edit-date');
+  const statusEdit = container.querySelector('.edit-status');
+  const returnDateEdit = container.querySelector('.edit-return-date');
 
   populateSelect(studentEdit, students);
   populateSelect(bookEdit, books);
@@ -334,7 +323,7 @@ function renderEditForm(row, rec) {
     }
   });
 
-  row.querySelector('.save-edit').addEventListener('click', async () => {
+  container.querySelector('.save-edit').addEventListener('click', async () => {
     const returnDateValue = statusEdit.value === 'devolvido'
       ? (returnDateEdit.value ? new Date(`${returnDateEdit.value}T12:00:00`).toISOString() : new Date().toISOString())
       : '';
@@ -358,7 +347,7 @@ function renderEditForm(row, rec) {
     }
   });
 
-  row.querySelector('.cancel-edit').addEventListener('click', () => {
+  container.querySelector('.cancel-edit').addEventListener('click', () => {
     editingRecordId = null;
     renderRecords(getStoredRecords());
   });
@@ -480,6 +469,14 @@ borrowForm.addEventListener('submit', async (event) => {
   } else {
     showMsg('Erro ao registrar empréstimo.', true);
   }
+});
+
+viewButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    currentView = button.dataset.view;
+    viewButtons.forEach((item) => item.classList.toggle('active', item === button));
+    renderRecords(allRecords);
+  });
 });
 
 studentSelect.addEventListener('change', () => {
