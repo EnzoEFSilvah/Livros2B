@@ -27,7 +27,8 @@
                     </div>
                     <div class="col-12 col-md-4">
                         <label for="book-select" class="form-label">Livro</label>
-                        <select id="book-select" class="form-select" required></select>
+                        <input type="text" id="book-select" class="form-control" list="book-options" placeholder="Digite ou selecione um livro" autocomplete="off" required>
+                        <datalist id="book-options"></datalist>
                     </div>
                     <div class="col-12 col-md-4">
                         <label for="date-input" class="form-label">Data</label>

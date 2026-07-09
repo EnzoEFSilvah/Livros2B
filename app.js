@@ -18,6 +18,7 @@ const STORAGE_KEY = 'livros-emprestimos';
 const STUDENT_PROFILES_KEY = 'livros-perfis-alunos';
 const studentSelect = document.getElementById('student-select');
 const bookSelect = document.getElementById('book-select');
+const bookDatalist = document.getElementById('book-options');
 const dateInput = document.getElementById('date-input');
 const photoInput = document.getElementById('student-photo');
 const photoPreview = document.getElementById('student-photo-preview');
@@ -125,6 +126,16 @@ function populateStudentSelect() {
     option.value = profile.name;
     option.textContent = profile.name;
     studentSelect.appendChild(option);
+  });
+}
+
+function populateBookDatalist(values) {
+  bookDatalist.innerHTML = '';
+
+  values.forEach((value) => {
+    const option = document.createElement('option');
+    option.value = value;
+    bookDatalist.appendChild(option);
   });
 }
 
@@ -437,13 +448,19 @@ borrowForm.addEventListener('submit', async (event) => {
     return;
   }
 
+  const selectedBook = bookSelect.value.trim();
+  if (!selectedBook) {
+    showMsg('Digite ou selecione um livro.', true);
+    return;
+  }
+
   const submitButton = borrowForm.querySelector('button[type="submit"]');
   submitButton.disabled = true;
   submitButton.textContent = 'Registrando...';
 
   const result = await createRecord({
     student_name: studentSelect.value,
-    book_title: bookSelect.value,
+    book_title: selectedBook,
     borrow_date: new Date(`${getSelectedDateValue()}T12:00:00`).toISOString(),
     return_date: '',
     status: 'emprestado'
@@ -503,7 +520,7 @@ if (!studentProfiles.length) {
 }
 
 saveStoredStudentProfiles(studentProfiles);
-populateSelect(bookSelect, books, 'Selecione um livro');
+populateBookDatalist(books);
 populateStudentSelect();
 dateInput.value = new Date().toISOString().split('T')[0];
 
